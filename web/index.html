@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			body {
+				display: grid;
+				height: 100vh;
+				padding: 0;
+				margin: 0;
+				grid-template-columns: 30% auto;
+				grid-template-rows: 100px auto;
+				justify-items: stretch;
+				align-items: start;
+				justify-content: start;
+				align-content: start;
+			}
+			#controls-div {
+				height: 100%;
+				margin: 10px;
+				grid-area: 1 / 1 / 1 / 1;
+			}
+			#query-div {
+				height: 100%;
+				margin: 10px;
+				grid-area: 2 / 1 / 2 / 1;
+			}
+			#logs-div {
+				margin: 10px;
+				height: 90vh;
+				overflow-y: scroll;
+				grid-area: 1 / 2 / 3 / 2;
+			}
+		</style>
+		<title>Longman's Minecraft Server</title>
+	</head>
+	<body>
+		<div id="controls-div">
+			<div id="status-div">Server status: <span id="status"></span></div>
+			<br />
+			<button onclick="startServer()">Start</button>
+			<button onclick="stopServer()">Stop</button>
+			<button onclick="resetServer()">Reset</button>
+			<button onclick="worldGenServer()">Generate</button>
+		</div>
+		<div id="query-div">
+			<h3>Server info:</h3>
+			Game ID: <span id="game-id"></span><br />
+			Game Type: <span id="game-type"></span><br />
+			MOTD: <span id="motd"></span><br />
+			Host Port: <span id="host-port"></span><br />
+			Map: <span id="map"></span><br />
+			Max Players: <span id="max-players"></span><br />
+			Num Players: <span id="num-players"></span><br />
+			Plugins: <span id="plugins"></span><br />
+			Version: <span id="version"></span><br />
+			Players:<br />
+			<ul id="players-list"></ul>
+		</div>
+		<div id="logs-div">
+			<pre id="logs"></pre>
+		</div>
+		<script>
+			"use strict";
+			function escapeHtml(text) {
+				return text
+					.replace(/&/g, "&amp;")
+					.replace(/</g, "&lt;")
+					.replace(/>/g, "&gt;")
+					.replace(/"/g, "&quot;")
+					.replace(/'/g, "&#039;");
+			}
+		</script>
+		<script>
+			"use strict";
+			const refershStatusInterval = 5000;
+			const refreshQueryInterval = 5000;
+			const refreshLogsInterval = 5000;
+
+			function refreshStatus() {
+				fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/status/status.txt", {cache: "no-cache"})
+					.then(res => res.text())
+					.then((data) => {
+						const serverStatus = escapeHtml(data).trim();
+						document.getElementById("status").innerHTML = serverStatus;
+						setTimeout(refreshStatus, refershStatusInterval);
+					});
+			}
+
+			function refreshQuery() {
+				fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/api/query")
+					.then(res => res.json())
+					.then((data) => {
+						if (data && Object.keys(data).length !== 0) {
+							document.getElementById("game-id").innerHTML = escapeHtml(data.game_id);
+							document.getElementById("game-type").innerHTML = escapeHtml(data.gametype);
+							document.getElementById("motd").innerHTML = escapeHtml(data.hostname);
+							document.getElementById("host-port").innerHTML = escapeHtml(data.hostport);
+							document.getElementById("map").innerHTML = escapeHtml(data.map);
+							document.getElementById("max-players").innerHTML = escapeHtml(data.maxplayers);
+							document.getElementById("num-players").innerHTML = escapeHtml(data.numplayers);
+							document.getElementById("plugins").innerHTML = escapeHtml(data.plugins);
+							document.getElementById("version").innerHTML = escapeHtml(data.version);
+
+							const playersList = document.getElementById("players-list");
+							playersList.innerHTML = "";
+							for (const playerName of data.players) {
+								const newListItem = document.createElement("li");
+								newListItem.innerHTML = escapeHtml(playerName);
+								playersList.appendChild(newListItem);
+							}
+						}
+						else {
+							document.getElementById("game-id").innerHTML = "";
+							document.getElementById("game-type").innerHTML = "";
+							document.getElementById("motd").innerHTML = "";
+							document.getElementById("host-port").innerHTML = "";
+							document.getElementById("map").innerHTML = "";
+							document.getElementById("max-players").innerHTML = "";
+							document.getElementById("num-players").innerHTML = "";
+							document.getElementById("plugins").innerHTML = "";
+							document.getElementById("version").innerHTML = "";
+							document.getElementById("players-list").innerHTML = "";
+						}
+
+						setTimeout(refreshQuery, refershStatusInterval);
+					});
+			}
+
+			function refreshLogs() {
+				fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/logs/latest.log", {cache: "no-cache"})
+					.then(res => res.text())
+					.then((data) => {
+						const logsDiv = document.getElementById("logs-div");
+						const isScrolledToBottom = logsDiv.scrollHeight - logsDiv.clientHeight <= logsDiv.scrollTop + 1;
+						
+						document.getElementById("logs").innerHTML = escapeHtml(data);
+						
+						if (isScrolledToBottom) {
+							logsDiv.scrollTop = logsDiv.scrollHeight - logsDiv.clientHeight;
+						}
+
+						setTimeout(refreshLogs, refreshLogsInterval);
+					});
+			}
+
+			refreshStatus();
+			refreshQuery();
+			refreshLogs();
+		</script>
+		<script>
+			"use strict";
+			async function startServer() {
+				const response = await fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/api/start", {method: "POST"});
+				if (response.status >= 200 && response.status < 300) {
+					alert("Starting server...");
+				}
+				else {
+					const responseText = await response.text();
+					alert(responseText);
+				}
+			}
+			async function stopServer() {
+				const response = await fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/api/stop", {method: "POST"});
+				if (response.status >= 200 && response.status < 300) {
+					alert("Stopping server...");
+				}
+				else {
+					const responseText = await response.text();
+					alert(responseText);
+				}
+			}
+			async function resetServer() {
+				const response = await fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/api/reset", {method: "POST"});
+				if (response.status >= 200 && response.status < 300) {
+					alert("Resetting server...");
+				}
+				else {
+					const responseText = await response.text();
+					alert(responseText);
+				}
+			}
+			async function worldGenServer() {
+				const response = await fetch("http://csclub.uwaterloo.ca/~l282xu/minecraft/api/world-gen", {method: "POST"});
+				if (response.status >= 200 && response.status < 300) {
+					alert("Starting world pregeneration...");
+				}
+				else {
+					const responseText = await response.text();
+					alert(responseText);
+				}
+			}
+
+		</script>
+	</body>
+</html>
